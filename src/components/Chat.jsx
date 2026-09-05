@@ -11,6 +11,30 @@ function timeLabel(iso) {
   })
 }
 
+function LockIcon() {
+  return (
+    <svg className="lock-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <rect
+        x="5"
+        y="10.5"
+        width="14"
+        height="9.5"
+        rx="2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
+      <path
+        d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
 export default function Chat({ alumni }) {
   const { user } = useAuth()
   const [messages, setMessages] = useState([])
@@ -23,40 +47,33 @@ export default function Chat({ alumni }) {
   const me = user?.id
   const them = alumni.id
 
-  // Realtime can deliver a row that is already in state (our own insert
-  // returns it too), so every write goes through this.
-  const addMessage = useCallback((row) => {
-    setMessages((current) =>
-      current.some((m) => m.id === row.id)
-        ? current
-        : [...current, row].sort(
-            (a, b) => new Date(a.created_at) - new Date(b.created_at),
-          ),
-    )
-  }, [])
+  // Bodies are stored encrypted, so the plaintext only ever comes back from
+  // thread_messages(). Realtime hands us ciphertext, which is why an INSERT
+  // event re-reads the thread instead of appending the payload directly.
+  const loadThread = useCallback(async () => {
+    const { data, error } = await supabase.rpc('thread_messages', {
+      p_other_id: them,
+    })
+
+    if (error) setError(error.message)
+    else {
+      setMessages(data ?? [])
+      setError(null)
+    }
+
+    setLoading(false)
+  }, [them])
 
   useEffect(() => {
     if (!me) return
     let cancelled = false
 
-    async function loadThread() {
-      const { data, error } = await supabase
-        .from('messages')
-        .select('id, sender_id, receiver_id, message, created_at')
-        .or(
-          `and(sender_id.eq.${me},receiver_id.eq.${them}),` +
-            `and(sender_id.eq.${them},receiver_id.eq.${me})`,
-        )
-        .order('created_at', { ascending: true })
-
+    async function refresh() {
       if (cancelled) return
-
-      if (error) setError(error.message)
-      else setMessages(data ?? [])
-      setLoading(false)
+      await loadThread()
     }
 
-    loadThread()
+    refresh()
 
     const channel = supabase
       .channel(`chat:${me}:${them}`)
@@ -67,7 +84,7 @@ export default function Chat({ alumni }) {
           const inThread =
             (row.sender_id === me && row.receiver_id === them) ||
             (row.sender_id === them && row.receiver_id === me)
-          if (inThread) addMessage(row)
+          if (inThread) refresh()
         },
       )
       .subscribe()
@@ -76,7 +93,7 @@ export default function Chat({ alumni }) {
       cancelled = true
       supabase.removeChannel(channel)
     }
-  }, [me, them, addMessage])
+  }, [me, them, loadThread])
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: 'nearest' })
@@ -90,17 +107,21 @@ export default function Chat({ alumni }) {
     setSending(true)
     setError(null)
 
-    const { data, error } = await supabase
-      .from('messages')
-      .insert({ sender_id: me, receiver_id: them, message: body })
-      .select()
-      .single()
+    const { data, error } = await supabase.rpc('send_message', {
+      p_receiver_id: them,
+      p_body: body,
+    })
 
     if (error) {
       setError(error.message)
     } else {
       setDraft('')
-      addMessage(data)
+      const sent = Array.isArray(data) ? data[0] : data
+      if (sent) {
+        setMessages((current) =>
+          current.some((m) => m.id === sent.id) ? current : [...current, sent],
+        )
+      }
     }
 
     setSending(false)
@@ -110,7 +131,13 @@ export default function Chat({ alumni }) {
 
   return (
     <section className="panel">
-      <h2 className="panel-title">Chat with {firstName}</h2>
+      <div className="panel-head">
+        <h2 className="panel-title">Chat with {firstName}</h2>
+        <p className="encrypted-note" title="Encrypted at rest with pgcrypto">
+          <LockIcon />
+          Messages are encrypted
+        </p>
+      </div>
 
       <div className="chat-log">
         {loading && <p className="state">Loading conversation…</p>}
@@ -149,6 +176,7 @@ export default function Chat({ alumni }) {
           onChange={(event) => setDraft(event.target.value)}
           placeholder={`Message ${firstName}…`}
           autoComplete="off"
+          maxLength={4000}
         />
         <button
           type="submit"

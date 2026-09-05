@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../lib/authContext'
+import ConfirmDialog from './ConfirmDialog'
 
 const SLOT_HOURS = [10, 12, 14, 16]
 const DAYS_AHEAD = 7
@@ -46,6 +48,7 @@ export default function Booking({ alumni }) {
   const [error, setError] = useState(null)
   const [notice, setNotice] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [pendingCancel, setPendingCancel] = useState(null)
 
   const slots = useMemo(buildSlots, [])
 
@@ -98,19 +101,16 @@ export default function Booking({ alumni }) {
     setError(null)
     setNotice(null)
 
-    const { error } = await supabase.from('bookings').insert({
-      student_id: user.id,
-      alumni_id: alumni.id,
-      scheduled_at: selected.toISOString(),
+    // book_session() inserts in a single statement, so when two students pick
+    // the same slot at the same instant the unique index decides it: the first
+    // transaction to commit keeps the booking, the other is told to pick again.
+    const { error } = await supabase.rpc('book_session', {
+      p_alumni_id: alumni.id,
+      p_scheduled_at: selected.toISOString(),
     })
 
     if (error) {
-      // 23505 = the unique index on (alumni_id, scheduled_at) fired.
-      setError(
-        error.code === '23505'
-          ? 'That slot was just booked by someone else. Pick another.'
-          : error.message,
-      )
+      setError(error.message)
     } else {
       setNotice(
         `Session booked for ${dayLabel(selected)} at ${timeOnly(selected)}.`,
@@ -122,24 +122,25 @@ export default function Booking({ alumni }) {
     setBusy(false)
   }
 
-  async function handleCancel(id) {
+  async function confirmCancel() {
     setBusy(true)
     setError(null)
     setNotice(null)
 
-    const { error } = await supabase
-      .from('bookings')
-      .update({ status: 'cancelled' })
-      .eq('id', id)
+    const { error } = await supabase.rpc('cancel_booking', {
+      p_booking_id: pendingCancel.id,
+    })
 
     if (error) setError(error.message)
     else setNotice('Booking cancelled.')
 
+    setPendingCancel(null)
     await loadAvailability()
     setBusy(false)
   }
 
   const firstName = alumni.name?.split(' ')[0] ?? 'this alum'
+  const pendingWhen = pendingCancel && new Date(pendingCancel.scheduled_at)
 
   return (
     <section className="panel">
@@ -147,7 +148,13 @@ export default function Booking({ alumni }) {
 
       {mine.length > 0 && (
         <div className="my-bookings">
-          <h3 className="panel-subtitle">Your upcoming sessions</h3>
+          <div className="my-bookings-head">
+            <h3 className="panel-subtitle">Your upcoming sessions</h3>
+            <Link className="link-btn" to="/sessions">
+              See all your sessions →
+            </Link>
+          </div>
+
           <ul className="booking-list">
             {mine.map((booking) => {
               const when = new Date(booking.scheduled_at)
@@ -159,7 +166,7 @@ export default function Booking({ alumni }) {
                   <button
                     type="button"
                     className="link-btn"
-                    onClick={() => handleCancel(booking.id)}
+                    onClick={() => setPendingCancel(booking)}
                     disabled={busy}
                   >
                     Cancel
@@ -216,6 +223,23 @@ export default function Booking({ alumni }) {
           ? `Confirm ${dayLabel(selected)} at ${timeOnly(selected)}`
           : 'Pick a slot'}
       </button>
+
+      <ConfirmDialog
+        open={Boolean(pendingCancel)}
+        title="Cancel this session?"
+        message={
+          pendingWhen
+            ? `Your session with ${firstName} on ${dayLabel(pendingWhen)} at ${timeOnly(
+                pendingWhen,
+              )} will be released and someone else can take the slot.`
+            : ''
+        }
+        confirmLabel="Yes, cancel it"
+        cancelLabel="Keep it"
+        busy={busy}
+        onConfirm={confirmCancel}
+        onCancel={() => setPendingCancel(null)}
+      />
     </section>
   )
 }

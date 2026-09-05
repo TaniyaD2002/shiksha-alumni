@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
-import { PhotoPlaceholder } from '../components/PhotoPlaceholder'
+import AlumniImage from '../components/AlumniImage'
 import Chat from '../components/Chat'
 import Booking from '../components/Booking'
 
@@ -62,11 +62,7 @@ export default function Profile() {
 
       <article className="profile">
         <div className="profile-photo">
-          {alum.photo_url ? (
-            <img src={alum.photo_url} alt={alum.name} />
-          ) : (
-            <PhotoPlaceholder tall />
-          )}
+          <AlumniImage alum={alum} tall size={600} />
         </div>
 
         <div className="profile-info">

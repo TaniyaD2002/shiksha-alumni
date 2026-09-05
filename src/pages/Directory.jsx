@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
-import { PhotoPlaceholder } from '../components/PhotoPlaceholder'
+import AlumniImage from '../components/AlumniImage'
 
 const ALL = 'All'
 
@@ -20,11 +20,7 @@ function AlumniCard({ alum }) {
   return (
     <article className="card">
       <div className="card-photo">
-        {alum.photo_url ? (
-          <img src={alum.photo_url} alt="" loading="lazy" />
-        ) : (
-          <PhotoPlaceholder />
-        )}
+        <AlumniImage alum={alum} size={400} />
       </div>
 
       <div className="card-body">

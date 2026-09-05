@@ -1,3 +1,8 @@
+/**
+ * Shown when an alum has no photo and the sample image service cannot be
+ * reached. Uploading is not offered here — profile photos are managed on the
+ * "My Profile" page.
+ */
 export function PhotoPlaceholder({ tall = false }) {
   return (
     <div className={`photo-drop${tall ? ' photo-drop-tall' : ''}`}>
@@ -27,10 +32,7 @@ export function PhotoPlaceholder({ tall = false }) {
           strokeLinejoin="round"
         />
       </svg>
-      <p className="photo-text">
-        Alumni photo
-        <span className="photo-sub">or browse files</span>
-      </p>
+      <p className="photo-text">Alumni photo</p>
     </div>
   )
 }

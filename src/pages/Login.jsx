@@ -3,6 +3,44 @@ import { Navigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../lib/authContext'
 import Footer from '../components/Footer'
+import Logo from '../components/Logo'
+import PasswordField from '../components/PasswordField'
+
+function GoogleMark() {
+  return (
+    <svg className="google-mark" viewBox="0 0 18 18" aria-hidden="true">
+      <path
+        fill="#4285F4"
+        d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62Z"
+      />
+      <path
+        fill="#34A853"
+        d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.93v2.33A9 9 0 0 0 9 18Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.93a9 9 0 0 0 0 8.1l3.04-2.33Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .93 4.95l3.04 2.33C4.68 5.16 6.66 3.58 9 3.58Z"
+      />
+    </svg>
+  )
+}
+
+const TITLES = {
+  signin: 'Welcome back',
+  signup: 'Create your account',
+  forgot: 'Reset your password',
+}
+
+const SUBTITLES = {
+  signin: 'Sign in to access the Shiksha alumni network.',
+  signup:
+    'Sign up to reach Shiksha graduates across universities and industries.',
+  forgot: 'Enter your email and we will send you a link to set a new password.',
+}
 
 export default function Login() {
   const { user, loading } = useAuth()
@@ -15,9 +53,35 @@ export default function Login() {
   const [busy, setBusy] = useState(false)
 
   const isSignUp = mode === 'signup'
+  const isForgot = mode === 'forgot'
 
   if (loading) return <p className="state">Loading…</p>
   if (user) return <Navigate to="/alumni" replace />
+
+  function goTo(nextMode) {
+    setMode(nextMode)
+    setError(null)
+    setNotice(null)
+  }
+
+  async function handleGoogle() {
+    setError(null)
+    setNotice(null)
+    setBusy(true)
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/alumni` },
+    })
+
+    // On success the browser navigates away, so we only get here on failure.
+    if (error) {
+      setError(
+        `${error.message}. If this says the provider is disabled, turn Google on under Authentication → Providers in the Supabase dashboard.`,
+      )
+      setBusy(false)
+    }
+  }
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -25,7 +89,14 @@ export default function Login() {
     setNotice(null)
     setBusy(true)
 
-    if (isSignUp) {
+    if (isForgot) {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      })
+
+      if (error) setError(error.message)
+      else setNotice(`If ${email} has an account, a reset link is on its way.`)
+    } else if (isSignUp) {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -50,10 +121,10 @@ export default function Login() {
     setBusy(false)
   }
 
-  function switchMode() {
-    setMode(isSignUp ? 'signin' : 'signup')
-    setError(null)
-    setNotice(null)
+  function submitLabel() {
+    if (busy) return 'Please wait…'
+    if (isForgot) return 'Send reset link'
+    return isSignUp ? 'Create account' : 'Sign in'
   }
 
   return (
@@ -61,34 +132,29 @@ export default function Login() {
       <main className="auth-main">
         <div className="auth-card">
           <div className="auth-brand">
-            <svg
-              className="logo-mark"
-              viewBox="0 0 32 32"
-              role="presentation"
-              aria-hidden="true"
-            >
-              <path
-                d="M16 3 3 9.5 16 16l13-6.5L16 3Z"
-                fill="currentColor"
-                opacity="0.9"
-              />
-              <path
-                d="M8 13.2v6.6c0 .8.4 1.5 1.1 1.9 4.3 2.5 9.5 2.5 13.8 0 .7-.4 1.1-1.1 1.1-1.9v-6.6L16 18 8 13.2Z"
-                fill="currentColor"
-                opacity="0.55"
-              />
-            </svg>
-            <span className="logo-word">Shiksha</span>
+            <Logo to="/" />
           </div>
 
-          <h1 className="auth-title">
-            {isSignUp ? 'Create your account' : 'Welcome back'}
-          </h1>
-          <p className="auth-sub">
-            {isSignUp
-              ? 'Sign up to reach Shiksha graduates across universities and industries.'
-              : 'Sign in to access the Shiksha alumni network.'}
-          </p>
+          <h1 className="auth-title">{TITLES[mode]}</h1>
+          <p className="auth-sub">{SUBTITLES[mode]}</p>
+
+          {!isForgot && (
+            <>
+              <button
+                type="button"
+                className="btn btn-google"
+                onClick={handleGoogle}
+                disabled={busy}
+              >
+                <GoogleMark />
+                Continue with Google
+              </button>
+
+              <div className="auth-divider">
+                <span>or use your email</span>
+              </div>
+            </>
+          )}
 
           <form className="auth-form" onSubmit={handleSubmit}>
             {isSignUp && (
@@ -117,32 +183,75 @@ export default function Login() {
               />
             </label>
 
-            <label className="field">
-              <span className="field-label">Password</span>
-              <input
-                type="password"
+            {!isForgot && (
+              <PasswordField
                 value={password}
-                onChange={(event) => setPassword(event.target.value)}
+                onChange={setPassword}
                 placeholder="At least 6 characters"
                 autoComplete={isSignUp ? 'new-password' : 'current-password'}
                 minLength={6}
-                required
               />
-            </label>
+            )}
+
+            {mode === 'signin' && (
+              <p className="auth-forgot">
+                <button
+                  type="button"
+                  className="link-btn"
+                  onClick={() => goTo('forgot')}
+                >
+                  Forgot your password?
+                </button>
+              </p>
+            )}
 
             {error && <p className="form-error">{error}</p>}
             {notice && <p className="form-notice">{notice}</p>}
 
             <button type="submit" className="btn btn-primary" disabled={busy}>
-              {busy ? 'Please wait…' : isSignUp ? 'Create account' : 'Sign in'}
+              {submitLabel()}
             </button>
           </form>
 
           <p className="auth-switch">
-            {isSignUp ? 'Already have an account?' : 'New to Shiksha?'}{' '}
-            <button type="button" className="link-btn" onClick={switchMode}>
-              {isSignUp ? 'Sign in' : 'Create one'}
-            </button>
+            {isForgot && (
+              <>
+                Remembered it?{' '}
+                <button
+                  type="button"
+                  className="link-btn"
+                  onClick={() => goTo('signin')}
+                >
+                  Back to sign in
+                </button>
+              </>
+            )}
+
+            {isSignUp && (
+              <>
+                Already have an account?{' '}
+                <button
+                  type="button"
+                  className="link-btn"
+                  onClick={() => goTo('signin')}
+                >
+                  Sign in
+                </button>
+              </>
+            )}
+
+            {mode === 'signin' && (
+              <>
+                New to Shiksha?{' '}
+                <button
+                  type="button"
+                  className="link-btn"
+                  onClick={() => goTo('signup')}
+                >
+                  Create one
+                </button>
+              </>
+            )}
           </p>
         </div>
       </main>
