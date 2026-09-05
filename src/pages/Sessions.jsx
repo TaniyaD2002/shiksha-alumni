@@ -22,7 +22,7 @@ function SessionRow({ booking, past, onCancel, busy }) {
     <li className={`session-row${past ? ' is-past' : ''}`}>
       <img
         className="session-photo"
-        src={alumniPhoto(alum, 120)}
+        src={alumniPhoto(alum)}
         alt=""
         loading="lazy"
       />

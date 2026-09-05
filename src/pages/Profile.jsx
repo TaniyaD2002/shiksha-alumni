@@ -62,7 +62,7 @@ export default function Profile() {
 
       <article className="profile">
         <div className="profile-photo">
-          <AlumniImage alum={alum} tall size={600} />
+          <AlumniImage alum={alum} tall />
         </div>
 
         <div className="profile-info">

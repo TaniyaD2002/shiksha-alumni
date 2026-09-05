@@ -42,6 +42,7 @@ function timeOnly(date) {
 export default function Booking({ alumni }) {
   const { user } = useAuth()
   const [taken, setTaken] = useState(new Set())
+  const [myBusy, setMyBusy] = useState(new Set())
   const [mine, setMine] = useState([])
   const [selected, setSelected] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -65,10 +66,11 @@ export default function Booking({ alumni }) {
   const loadAvailability = useCallback(async () => {
     const [takenResult, mineResult] = await Promise.all([
       supabase.rpc('taken_slots', { p_alumni_id: alumni.id }),
+      // Row level security limits this to the signed-in student's own rows, so
+      // it covers every alum they have booked - not just this one.
       supabase
         .from('bookings')
-        .select('id, scheduled_at, status')
-        .eq('alumni_id', alumni.id)
+        .select('id, alumni_id, scheduled_at, status')
         .eq('status', 'confirmed')
         .order('scheduled_at', { ascending: true }),
     ])
@@ -85,7 +87,13 @@ export default function Booking({ alumni }) {
       )
     }
 
-    if (!mineResult.error) setMine(mineResult.data ?? [])
+    if (!mineResult.error) {
+      const rows = mineResult.data ?? []
+      setMine(rows.filter((row) => row.alumni_id === alumni.id))
+      setMyBusy(
+        new Set(rows.map((row) => new Date(row.scheduled_at).getTime())),
+      )
+    }
     setLoading(false)
   }, [alumni.id])
 
@@ -188,6 +196,9 @@ export default function Booking({ alumni }) {
               <div className="slot-row">
                 {daySlots.map((slot) => {
                   const isTaken = taken.has(slot.getTime())
+                  // Busy elsewhere: the student already has another alum at
+                  // this time, so the database would reject the insert.
+                  const isClash = !isTaken && myBusy.has(slot.getTime())
                   const isSelected = selected?.getTime() === slot.getTime()
 
                   return (
@@ -195,12 +206,18 @@ export default function Booking({ alumni }) {
                       key={slot.toISOString()}
                       type="button"
                       className={`slot${isSelected ? ' is-selected' : ''}`}
-                      disabled={isTaken}
+                      disabled={isTaken || isClash}
                       aria-pressed={isSelected}
+                      title={
+                        isClash
+                          ? 'You already have another session at this time'
+                          : undefined
+                      }
                       onClick={() => setSelected(slot)}
                     >
                       {timeOnly(slot)}
                       {isTaken && <span className="slot-tag">booked</span>}
+                      {isClash && <span className="slot-tag">you are busy</span>}
                     </button>
                   )
                 })}

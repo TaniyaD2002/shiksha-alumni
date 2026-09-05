@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import heroImage from '../assets/hero.png'
 
 function Highlights({ items }) {
   if (!items?.length) return null
@@ -51,12 +50,9 @@ export default function InfoPage({ page, showHero = false }) {
         <p className="info-lead">{page.lead}</p>
 
         {showHero && (
-          <>
-            <img className="info-hero" src={heroImage} alt="" />
-            <Link className="btn btn-primary info-cta" to="/alumni">
-              Browse the alumni network
-            </Link>
-          </>
+          <Link className="btn btn-primary info-cta" to="/alumni">
+            Browse the alumni network
+          </Link>
         )}
       </section>
 

@@ -20,7 +20,7 @@ function AlumniCard({ alum }) {
   return (
     <article className="card">
       <div className="card-photo">
-        <AlumniImage alum={alum} size={400} />
+        <AlumniImage alum={alum} />
       </div>
 
       <div className="card-body">

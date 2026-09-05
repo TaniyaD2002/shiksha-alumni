@@ -7,8 +7,8 @@ import PhotoPlaceholder from './PhotoPlaceholder'
  * portrait from the image service. Falls back to the drawn placeholder if
  * neither loads (offline, blocked, dead URL).
  */
-export default function AlumniImage({ alum, tall = false, size = 400 }) {
-  const src = alumniPhoto(alum, size)
+export default function AlumniImage({ alum, tall = false }) {
+  const src = alumniPhoto(alum)
   const [failed, setFailed] = useState(false)
 
   useEffect(() => {
