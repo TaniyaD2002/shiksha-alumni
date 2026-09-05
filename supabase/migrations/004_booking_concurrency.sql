@@ -12,10 +12,16 @@ create unique index if not exists bookings_slot_unique
   on public.bookings (alumni_id, scheduled_at)
   where status = 'confirmed';
 
--- A student should also not be in two places at once.
-create unique index if not exists bookings_student_slot_unique
-  on public.bookings (student_id, scheduled_at)
-  where status = 'confirmed';
+-- Not enforced: a matching index on (student_id, scheduled_at) would also stop
+-- one student holding two sessions at the same moment. It is left out because
+-- existing rows already violate it. To turn it on, cancel the overlaps first:
+--
+--   select student_id, scheduled_at, count(*)
+--   from public.bookings where status = 'confirmed'
+--   group by 1, 2 having count(*) > 1;
+--
+-- then create unique index bookings_student_slot_unique
+--   on public.bookings (student_id, scheduled_at) where status = 'confirmed';
 
 create or replace function public.book_session(
   p_alumni_id uuid,
@@ -44,13 +50,8 @@ begin
     returning * into v_row;
   exception
     when unique_violation then
-      if position('bookings_student_slot_unique' in sqlerrm) > 0 then
-        raise exception 'You already have another session booked at that time.'
-          using errcode = 'P0001';
-      else
-        raise exception 'That slot was just booked by someone else. Pick another.'
-          using errcode = 'P0001';
-      end if;
+      raise exception 'That slot was just booked by someone else. Pick another.'
+        using errcode = 'P0001';
   end;
 
   return v_row;
