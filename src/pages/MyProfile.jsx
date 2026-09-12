@@ -26,6 +26,7 @@ export default function MyProfile() {
   const [error, setError] = useState(null)
   const [notice, setNotice] = useState(null)
 
+  const [currentPassword, setCurrentPassword] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [pwError, setPwError] = useState(null)
@@ -171,7 +172,30 @@ export default function MyProfile() {
       return
     }
 
+    if (currentPassword === password) {
+      setPwError('Pick a password you have not used here before.')
+      return
+    }
+
     setPwBusy(true)
+
+    // updateUser() will change the password on the strength of the session
+    // alone, which means anyone who walks up to an unlocked browser can lock
+    // the real owner out. Re-checking the old password first is what stops
+    // that. signInWithPassword() on the current user is the check: it either
+    // returns a fresh session for the same account or an invalid-credentials
+    // error, and it leaves the existing session in place either way.
+    const { error: verifyError } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: currentPassword,
+    })
+
+    if (verifyError) {
+      setPwBusy(false)
+      setPwError('That current password is not right. Try again.')
+      return
+    }
+
     const { error } = await supabase.auth.updateUser({ password })
     setPwBusy(false)
 
@@ -180,6 +204,7 @@ export default function MyProfile() {
       return
     }
 
+    setCurrentPassword('')
     setPassword('')
     setConfirm('')
     setPwNotice('Password updated.')
@@ -283,6 +308,13 @@ export default function MyProfile() {
           </p>
         ) : (
           <form className="stacked-form" onSubmit={handlePasswordSubmit}>
+            <PasswordField
+              label="Current password"
+              value={currentPassword}
+              onChange={setCurrentPassword}
+              placeholder="The password you sign in with today"
+              autoComplete="current-password"
+            />
             <PasswordField
               label="New password"
               value={password}

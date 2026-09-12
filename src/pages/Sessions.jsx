@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../lib/authContext'
 import { alumniPhoto } from '../lib/avatar'
+import { splitBookings } from '../lib/bookings'
 import ConfirmDialog from '../components/ConfirmDialog'
 
 function whenLabel(iso) {
@@ -87,19 +88,7 @@ export default function Sessions() {
     if (user) load()
   }, [user, load])
 
-  const [upcoming, past] = useMemo(() => {
-    const now = Date.now()
-    const ahead = []
-    const behind = []
-
-    for (const booking of bookings) {
-      if (new Date(booking.scheduled_at).getTime() >= now) ahead.push(booking)
-      else behind.push(booking)
-    }
-
-    behind.reverse()
-    return [ahead, behind]
-  }, [bookings])
+  const [upcoming, past] = useMemo(() => splitBookings(bookings), [bookings])
 
   async function confirmCancel() {
     setBusy(true)

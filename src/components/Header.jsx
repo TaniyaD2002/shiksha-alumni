@@ -74,13 +74,8 @@ export default function Header() {
                   >
                     My Profile
                   </Link>
-                  <Link
-                    to="/sessions"
-                    role="menuitem"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    Your Sessions
-                  </Link>
+                  {/* "Your Sessions" lives in the main nav above. Repeating it
+                      here gave the same page two doors in the same header. */}
                   <button type="button" role="menuitem" onClick={signOut}>
                     Log out
                   </button>

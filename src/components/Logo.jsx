@@ -7,7 +7,7 @@ import logoUrl from '../assets/Shiksha-Logo-Updated-1.png'
  */
 export default function Logo({ to = '/', className = '' }) {
   const image = (
-    <img className="logo-img" src={logoUrl} alt="Shiksha" width="1080" height="495" />
+    <img className="logo-img" src={logoUrl} alt="Shiksha" width="1080" height="480" />
   )
 
   if (!to) return <span className={`logo ${className}`.trim()}>{image}</span>

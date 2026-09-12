@@ -8,7 +8,8 @@
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test:booking-race": "node scripts/test-booking-race.mjs"
+    "test:booking-race": "node scripts/test-booking-race.mjs",
+    "test:v2": "node scripts/test-suggestions-v2.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",

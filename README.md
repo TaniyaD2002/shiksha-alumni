@@ -20,6 +20,9 @@ fresh project, then each migration once.
 | `supabase/migrations/002_avatar_storage.sql` | `avatars` storage bucket and its policies |
 | `supabase/migrations/003_encrypted_messages.sql` | Encrypts chat messages at rest |
 | `supabase/migrations/004_booking_concurrency.sql` | `book_session` / `cancel_booking` and the slot indexes |
+| `supabase/migrations/005_one_session_per_student_slot.sql` | Stops one student holding two sessions at the same moment |
+| `supabase/migrations/006_alumni_sample_photos.sql` | Fills in sample photos for alumni without one |
+| `supabase/migrations/007_account_lookup.sql` | `account_exists` — lets "forgot password" check the address first |
 
 `003` generates an encryption key and stores it in `private.crypto_keys`.
 **Back that value up.** If it is lost, existing messages cannot be decrypted.
@@ -81,13 +84,54 @@ npm run test:booking-race
 It fires both bookings in parallel and passes only if exactly one succeeds.
 It cancels the winning booking afterwards.
 
+## Checking the review fixes
+
+```powershell
+npm run test:v2
+```
+
+Covers the two Version 2 items a screenshot cannot show: that past sessions
+drop off the "upcoming" list (`src/lib/bookings.js`, offline), and that
+`account_exists` answers the forgot-password form. The second needs migration
+007 applied — until it is, that check fails and says so. Set
+`$env:TEST_KNOWN_EMAIL` to a real account's address to also cover the
+address-is-registered case.
+
 ## Replacing the logo
 
 The header, login card and reset page all render
 `src/assets/Shiksha-Logo-Updated-1.png` through `src/components/Logo.jsx`. To
 change the artwork, drop the new file in `src/assets/` and update that one
-import. `public/shiksha-logo.png` is the same image used as the browser
-favicon.
+import.
+
+The browser tab icon comes from a different file. `src/assets/shiksha-icon-source.png`
+is the stacked logo shiksha-edu.com serves as its own site icon, at its full
+1080px (`wp-content/uploads/2022/08/logo.png`). `public/favicon.ico` (16 through
+256px) and `public/shiksha-mark.png` (512px, also the Apple touch icon) are cut
+from it.
+
+They hold the graduation-cap "S" only, not the whole lockup. The live site pads
+the full stacked logo — mark, "Shiksha", and the tagline — into the icon, and
+below about 48px the two lines of type collapse into noise. Cropping above the
+wordmark keeps the same artwork legible at 16px.
+
+Regenerate after replacing the source file:
+
+```bash
+python -c "
+from PIL import Image
+src = Image.open('src/assets/shiksha-icon-source.png').convert('RGBA')
+mark = src.crop((0, 0, 1080, 636))    # everything above the wordmark
+mark = mark.crop(mark.getbbox())
+w, h = mark.size
+side = int(max(w, h) * 1.08)
+c = Image.new('RGBA', (side, side), (0, 0, 0, 0))
+c.alpha_composite(mark, ((side - w) // 2, (side - h) // 2))
+c.resize((512, 512), Image.LANCZOS).save('public/shiksha-mark.png')
+c.resize((256, 256), Image.LANCZOS).save('public/favicon.ico',
+    sizes=[(16,16),(32,32),(48,48),(64,64),(128,128),(256,256)])
+"
+```
 
 ## Placeholder pages
 

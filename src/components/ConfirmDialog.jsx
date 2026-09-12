@@ -10,6 +10,9 @@ export default function ConfirmDialog({
   message,
   confirmLabel = 'Confirm',
   cancelLabel = 'Keep it',
+  // 'danger' for anything that destroys something, 'primary' for a step the
+  // user is opting into, such as confirming a booking.
+  tone = 'danger',
   busy = false,
   onConfirm,
   onCancel,
@@ -56,7 +59,7 @@ export default function ConfirmDialog({
           </button>
           <button
             type="button"
-            className="btn btn-danger"
+            className={`btn btn-${tone}`}
             ref={confirmRef}
             onClick={onConfirm}
             disabled={busy}

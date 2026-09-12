@@ -30,7 +30,10 @@ function AlumniCard({ alum }) {
         {alum.about && <p className="card-about">{alum.about}</p>}
       </div>
 
-      <Link className="view-profile" to={`/alumni/${alum.id}`}>
+      <Link
+        className="btn btn-small btn-accent view-profile"
+        to={`/alumni/${alum.id}`}
+      >
         View Profile <span aria-hidden="true">→</span>
       </Link>
     </article>

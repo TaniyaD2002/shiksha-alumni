@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../lib/authContext'
@@ -51,6 +51,30 @@ export default function Login() {
   const [error, setError] = useState(null)
   const [notice, setNotice] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [oauthBusy, setOauthBusy] = useState(false)
+
+  // Starting Google sign-in hands the tab over to Google. Coming back without
+  // finishing — the back button, or dismissing the consent screen — usually
+  // restores this page from the bfcache with our state exactly as it was, so
+  // the button stays disabled until a manual refresh. Releasing the flag every
+  // time the page is shown again puts the button back in reach.
+  useEffect(() => {
+    function release() {
+      setOauthBusy(false)
+    }
+
+    function onVisibility() {
+      if (document.visibilityState === 'visible') release()
+    }
+
+    window.addEventListener('pageshow', release)
+    document.addEventListener('visibilitychange', onVisibility)
+
+    return () => {
+      window.removeEventListener('pageshow', release)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [])
 
   const isSignUp = mode === 'signup'
   const isForgot = mode === 'forgot'
@@ -67,7 +91,7 @@ export default function Login() {
   async function handleGoogle() {
     setError(null)
     setNotice(null)
-    setBusy(true)
+    setOauthBusy(true)
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -79,7 +103,7 @@ export default function Login() {
       setError(
         `${error.message}. If this says the provider is disabled, turn Google on under Authentication → Providers in the Supabase dashboard.`,
       )
-      setBusy(false)
+      setOauthBusy(false)
     }
   }
 
@@ -90,12 +114,32 @@ export default function Login() {
     setBusy(true)
 
     if (isForgot) {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      })
+      const address = email.trim()
 
-      if (error) setError(error.message)
-      else setNotice(`If ${email} has an account, a reset link is on its way.`)
+      // Ask the user database first instead of answering every request with
+      // "if this address has an account…". Someone who mistyped their email
+      // should be told so, not left waiting for mail that will never arrive.
+      const { data: hasAccount, error: lookupError } = await supabase.rpc(
+        'account_exists',
+        { p_email: address },
+      )
+
+      if (lookupError) {
+        setError(
+          `${lookupError.message}. If this says the function is missing, run supabase/migrations/007_account_lookup.sql.`,
+        )
+      } else if (!hasAccount) {
+        setError(
+          `We could not find an account for ${address}. Check the address, or create an account instead.`,
+        )
+      } else {
+        const { error } = await supabase.auth.resetPasswordForEmail(address, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        })
+
+        if (error) setError(error.message)
+        else setNotice(`A reset link is on its way to ${address}.`)
+      }
     } else if (isSignUp) {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -144,7 +188,7 @@ export default function Login() {
                 type="button"
                 className="btn btn-google"
                 onClick={handleGoogle}
-                disabled={busy}
+                disabled={busy || oauthBusy}
               >
                 <GoogleMark />
                 Continue with Google

@@ -379,19 +379,7 @@
 
 .view-profile {
   align-self: flex-start;
-  font: inherit;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--orange);
-  background: none;
-  border: 0;
-  padding: 14px 0 2px;
-  cursor: pointer;
-  transition: color 0.15s ease;
-}
-
-.view-profile:hover {
-  color: var(--orange-dark);
+  margin-top: 14px;
 }
 
 /* Footer */
@@ -442,6 +430,23 @@
 .btn-ghost:hover:not(:disabled) {
   border-color: var(--orange);
   color: var(--orange);
+}
+
+/* Outlined brand pill, for links that sit inside content rather than ending a
+   form: "View Profile", "See all your sessions". */
+.btn-accent {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--card-bg);
+  border-color: var(--orange);
+  color: var(--orange);
+}
+
+.btn-accent:hover:not(:disabled) {
+  background: var(--orange);
+  border-color: var(--orange);
+  color: #fff;
 }
 
 .link-btn {
@@ -539,6 +544,7 @@
 .auth-brand {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 9px;
   color: var(--orange);
   margin-bottom: 22px;
@@ -1377,14 +1383,11 @@ img.account-avatar {
 
 .my-bookings-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
-}
-
-.my-bookings-head .link-btn {
-  font-size: 14px;
+  margin-bottom: 12px;
 }
 
 /* ------------------------------------------------------------ my profile --- */

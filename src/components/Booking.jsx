@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../lib/authContext'
+import { isUpcoming } from '../lib/bookings'
 import ConfirmDialog from './ConfirmDialog'
 
 const SLOT_HOURS = [10, 12, 14, 16]
@@ -50,6 +51,7 @@ export default function Booking({ alumni }) {
   const [notice, setNotice] = useState(null)
   const [busy, setBusy] = useState(false)
   const [pendingCancel, setPendingCancel] = useState(null)
+  const [pendingBook, setPendingBook] = useState(null)
 
   const slots = useMemo(buildSlots, [])
 
@@ -89,7 +91,15 @@ export default function Booking({ alumni }) {
 
     if (!mineResult.error) {
       const rows = mineResult.data ?? []
-      setMine(rows.filter((row) => row.alumni_id === alumni.id))
+      // "Upcoming" has to mean upcoming: a session whose time has passed
+      // belongs in the history on /sessions, not in a list offering to cancel
+      // it.
+      const now = Date.now()
+      setMine(
+        rows.filter(
+          (row) => row.alumni_id === alumni.id && isUpcoming(row, now),
+        ),
+      )
       setMyBusy(
         new Set(rows.map((row) => new Date(row.scheduled_at).getTime())),
       )
@@ -102,8 +112,8 @@ export default function Booking({ alumni }) {
     loadAvailability()
   }, [user, loadAvailability])
 
-  async function handleBook() {
-    if (!selected || busy) return
+  async function confirmBook() {
+    if (!pendingBook || busy) return
 
     setBusy(true)
     setError(null)
@@ -114,18 +124,19 @@ export default function Booking({ alumni }) {
     // transaction to commit keeps the booking, the other is told to pick again.
     const { error } = await supabase.rpc('book_session', {
       p_alumni_id: alumni.id,
-      p_scheduled_at: selected.toISOString(),
+      p_scheduled_at: pendingBook.toISOString(),
     })
 
     if (error) {
       setError(error.message)
     } else {
       setNotice(
-        `Session booked for ${dayLabel(selected)} at ${timeOnly(selected)}.`,
+        `Session booked for ${dayLabel(pendingBook)} at ${timeOnly(pendingBook)}.`,
       )
       setSelected(null)
     }
 
+    setPendingBook(null)
     await loadAvailability()
     setBusy(false)
   }
@@ -158,8 +169,8 @@ export default function Booking({ alumni }) {
         <div className="my-bookings">
           <div className="my-bookings-head">
             <h3 className="panel-subtitle">Your upcoming sessions</h3>
-            <Link className="link-btn" to="/sessions">
-              See all your sessions →
+            <Link className="btn btn-small btn-accent" to="/sessions">
+              See all your sessions <span aria-hidden="true">→</span>
             </Link>
           </div>
 
@@ -233,13 +244,31 @@ export default function Booking({ alumni }) {
       <button
         type="button"
         className="btn btn-primary"
-        onClick={handleBook}
+        onClick={() => setPendingBook(selected)}
         disabled={!selected || busy}
       >
         {selected
           ? `Confirm ${dayLabel(selected)} at ${timeOnly(selected)}`
           : 'Pick a slot'}
       </button>
+
+      <ConfirmDialog
+        open={Boolean(pendingBook)}
+        title="Book this session?"
+        message={
+          pendingBook
+            ? `You are booking ${dayLabel(pendingBook)} at ${timeOnly(
+                pendingBook,
+              )} with ${firstName}. The slot is held for you until you cancel it.`
+            : ''
+        }
+        confirmLabel="Yes, book it"
+        cancelLabel="Go back"
+        tone="primary"
+        busy={busy}
+        onConfirm={confirmBook}
+        onCancel={() => setPendingBook(null)}
+      />
 
       <ConfirmDialog
         open={Boolean(pendingCancel)}
