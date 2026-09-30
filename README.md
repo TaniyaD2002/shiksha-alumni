@@ -84,6 +84,38 @@ npm run test:booking-race
 It fires both bookings in parallel and passes only if exactly one succeeds.
 It cancels the winning booking afterwards.
 
+## Session length
+
+Supabase keeps a session alive indefinitely — the access token expires hourly,
+but the client silently swaps it for a new one using the refresh token in
+localStorage. Sign in once and you stay signed in for weeks.
+
+`src/lib/session.js` puts a ceiling on that. `MAX_SESSION_HOURS` (currently 12)
+is the whole configuration; change that one number to 24 or anything else. The
+clock runs from sign-in, not from last use, so it is a maximum age rather than
+an idle timeout. `AuthProvider` signs the user out when the window lapses —
+checked on mount, on a timer set for the exact moment, and again whenever the
+tab is brought back into view, since timers do not fire reliably while a laptop
+sleeps. The sign-in page then explains what happened.
+
+**This is browser-side enforcement.** It protects the person at the keyboard. It
+does not protect against someone who has already copied the refresh token out of
+localStorage — that token stays valid until Supabase itself rejects it. The
+server-side control is **Time-box user sessions** under
+[Authentication → Sessions](https://supabase.com/dashboard/project/_/auth/sessions),
+which is a **Pro plan** feature. If this project is on Pro, set it to the same
+number of hours and the limit holds even outside the app. Supabase applies it
+when a session next refreshes rather than killing sessions on the spot, so the
+real ceiling is that value plus up to one token lifetime.
+
+```powershell
+npm run test:session
+```
+
+Covers the boundaries offline: expiry exactly at the limit, countdown, the
+setTimeout 32-bit clamp, and sessions with a missing or unparseable sign-in time
+(which are left alone rather than signed out).
+
 ## Checking the review fixes
 
 ```powershell

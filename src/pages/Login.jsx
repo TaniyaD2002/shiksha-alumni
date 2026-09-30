@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../lib/authContext'
+import { takeExpiryNotice } from '../lib/session'
 import Footer from '../components/Footer'
 import Logo from '../components/Logo'
 import PasswordField from '../components/PasswordField'
@@ -49,7 +50,9 @@ export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState(null)
-  const [notice, setNotice] = useState(null)
+  // Read once, on the first render, and cleared as it is read: the note
+  // explains this arrival at the sign-in page, not the next one.
+  const [notice, setNotice] = useState(takeExpiryNotice)
   const [busy, setBusy] = useState(false)
   const [oauthBusy, setOauthBusy] = useState(false)
 
