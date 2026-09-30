@@ -103,7 +103,9 @@ does not protect against someone who has already copied the refresh token out of
 localStorage — that token stays valid until Supabase itself rejects it. The
 server-side control is **Time-box user sessions** under
 [Authentication → Sessions](https://supabase.com/dashboard/project/_/auth/sessions),
-which is a **Pro plan** feature. If this project is on Pro, set it to the same
+which is a **Pro plan** feature. This project is on the free plan as of
+September 2026, so that setting is not available and the browser-side limit is
+the only one in force. If it ever moves to Pro, set the time-box to the same
 number of hours and the limit holds even outside the app. Supabase applies it
 when a session next refreshes rather than killing sessions on the spot, so the
 real ceiling is that value plus up to one token lifetime.
